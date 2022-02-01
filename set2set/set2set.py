@@ -8,8 +8,23 @@ class Set2Set(nn.Module):
     The Set2Set model based on `"Order Matters: Sequence to sequence for sets"
     <https://arxiv.org/abs/1511.06391>`_ paper
 
+    .. math::
+        \mathbf{q}_t &= \mathrm{LSTM}(\mathbf{q}^{*}_{t-1})
+
+        \mathbf{e}_{i, t} &= f(\mathbf{x}_i, \mathbf{q}_t)
+
+        \alpha_{i,t} &= \mathrm{softmax}(\mathbf{e}_{i, t})
+
+        \mathbf{r}_t &= \sum_{i=1}^N \alpha_{i,t} \mathbf{x}_i
+
+        \mathbf{q}^{*}_t &= \mathbf{q}_t \, \Vert \, \mathbf{r}_t,
+
+    where :math:`\mathbf{q}^{*}_T` defines the output of the layer with twice
+    the dimensionality as the input.
+
     Set2Set model is used for learning order invariant representation
-    of vectors which can later be used with Seq2Seq models.
+    of vectors which can later be used with Seq2Seq models or representing
+    vertices/edges of a graph to a feed-forward neural network.
 
     Args:
         in_channels: The output size of the embedding representing the elements of the set
@@ -54,7 +69,7 @@ class Set2Set(nn.Module):
         for i in range(self.processing_steps):
             q_star = q_star.unsqueeze(0)
             # q_star: batch_size * out_channels
-            q, hidden = nn.LSTM(q_star, hidden) 
+            q, hidden = nn.LSTM(q_star, hidden)
             e = torch.einsum("kij,ibj->kib", q, x)
             # e: 1 x batch_size x n
             a = nn.Softmax(dim=2)(e).squeeze(0)
