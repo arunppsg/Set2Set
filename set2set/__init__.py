@@ -1,1 +1,1 @@
-from set2set import Set2Set
+from set2set.set2set import Set2Set

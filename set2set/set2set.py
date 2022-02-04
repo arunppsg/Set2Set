@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.functional as F
 
+
 class Set2Set(nn.Module):
     """
     The Set2Set model based on `"Order Matters: Sequence to sequence for sets"
@@ -13,9 +14,9 @@ class Set2Set(nn.Module):
 
         \mathbf{e}_{i, t} &= f(\mathbf{x}_i, \mathbf{q}_t)
 
-        \alpha_{i,t} &= \mathrm{softmax}(\mathbf{e}_{i, t})
+        \\alpha_{i,t} &= \mathrm{softmax}(\mathbf{e}_{i, t})
 
-        \mathbf{r}_t &= \sum_{i=1}^N \alpha_{i,t} \mathbf{x}_i
+        \mathbf{r}_t &= \sum_{i=1}^N \\alpha_{i,t} \mathbf{x}_i
 
         \mathbf{q}^{*}_t &= \mathbf{q}_t \, \Vert \, \mathbf{r}_t,
 
@@ -39,11 +40,10 @@ class Set2Set(nn.Module):
         q: tensor of shape :math:`(L, in_channels)` where L is the number of batches,
             in_channels is the embedding size
     """
-
     def __init__(self, in_channels, processing_steps, num_layers=1):
         super(Set2Set, self).__init__()
         self.in_channels = in_channels
-        self.out_channels = 2 * in_channels 
+        self.out_channels = 2 * in_channels
         self.processing_steps = processing_steps
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size=self.out_channels,
@@ -63,22 +63,20 @@ class Set2Set(nn.Module):
         batch_size = x.size()[0]
         n = x.size()[1]
         hidden = (torch.zeros(self.num_layers, batch_size, self.in_channels),
-             torch.zeros(self.num_layers, batch_size, self.in_channels))
+                  torch.zeros(self.num_layers, batch_size, self.in_channels))
         q_star = torch.zeros(1, batch_size, self.out_channels)
 
         for i in range(self.processing_steps):
-            q_star = q_star.unsqueeze(0)
             # q_star: batch_size * out_channels
-            q, hidden = nn.LSTM(q_star, hidden)
+            q, hidden = self.lstm(q_star, hidden)
             e = torch.einsum("kij,ibj->kib", q, x)
             # e: 1 x batch_size x n
             a = nn.Softmax(dim=2)(e).squeeze(0)
-            r = torch.einsum('ij,ijk->ijk', a, x).sum(axis=1).unsqueeze(0)
-            # r: 1 x batch_size x n 
-            q_star = torch.cat([q, r], dim=-1)
-
+            r = torch.einsum('ij,ijk->ijk', a, x).sum(axis=1)
+            # r: 1 x batch_size x n
+            q_star = torch.cat([q, r.unsqueeze(0)], dim=-1)
         return q_star.squeeze(0)
 
     def __repr__(self) -> str:
         return (f'{self.__class__.__name__}({self.in_channels}, '
-            f'{self.out_channels})')
+                f'{self.out_channels})')
